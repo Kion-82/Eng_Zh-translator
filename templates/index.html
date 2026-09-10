@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>英译中 PDF 翻译器</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#12161c; --muted:#69707c;
+    --line:#e6e9ee; --accent:#2f6df6; --accent-soft:#eaf0ff;
+    --ok:#178a52; --err:#c0392b; --warn:#b46b00;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#12151a; --card:#191d24; --ink:#e9edf3; --muted:#98a1ae;
+           --line:#262c35; --accent:#5b8cff; --accent-soft:#1c2536; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.6 -apple-system,"Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  .wrap{max-width:880px;margin:0 auto;padding:36px 20px 80px}
+  h1{font-size:22px;margin:0 0 4px;letter-spacing:.3px}
+  .sub{color:var(--muted);font-size:13.5px;margin-bottom:24px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+        padding:18px;margin-bottom:16px}
+  #drop{border:1.5px dashed var(--line);border-radius:14px;padding:38px 20px;text-align:center;
+        background:var(--card);cursor:pointer;transition:.15s}
+  #drop.hot{border-color:var(--accent);background:var(--accent-soft)}
+  #drop .big{font-size:16px;font-weight:600;margin-bottom:6px}
+  #drop .small{color:var(--muted);font-size:13px}
+  .opts{display:flex;flex-wrap:wrap;gap:22px;align-items:center;font-size:13.5px}
+  .opts label{display:flex;align-items:center;gap:6px;cursor:pointer}
+  .opts .grp{display:flex;align-items:center;gap:12px}
+  .opts b{font-weight:600;color:var(--muted);font-size:12.5px}
+  select,input[type=number]{font:inherit;padding:5px 8px;border-radius:8px;
+         border:1px solid var(--line);background:var(--card);color:var(--ink)}
+  .job{display:flex;gap:14px;align-items:center;padding:13px 0;border-top:1px solid var(--line)}
+  .job:first-child{border-top:0}
+  .job .meta{flex:1;min-width:0}
+  .job .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .job .st{font-size:12.5px;color:var(--muted);margin-top:3px}
+  .bar{height:6px;background:var(--line);border-radius:99px;overflow:hidden;margin-top:8px}
+  .bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .4s}
+  .btn{font:inherit;font-size:13px;padding:7px 13px;border-radius:9px;border:1px solid var(--line);
+       background:var(--card);color:var(--ink);cursor:pointer;text-decoration:none;white-space:nowrap}
+  .btn:hover{border-color:var(--accent);color:var(--accent)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{opacity:.9;color:#fff}
+  .empty{color:var(--muted);font-size:13.5px;text-align:center;padding:10px 0}
+  .warnbox{background:#fff6e5;border:1px solid #f0d9a8;color:#7a5300;border-radius:12px;
+           padding:12px 14px;font-size:13.5px;margin-bottom:16px}
+  @media (prefers-color-scheme: dark){ .warnbox{background:#2a2214;border-color:#4a3a1a;color:#e6c07a} }
+  .row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+  .tag{font-size:11.5px;color:var(--muted);border:1px solid var(--line);padding:2px 7px;border-radius:99px}
+  code{background:var(--accent-soft);padding:1px 5px;border-radius:5px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>英译中 PDF 翻译器</h1>
+  <div class="sub">本地离线逐句翻译 · 文件不出本机 · 输出中英对照 PDF</div>
+
+  <div id="envwarn" class="warnbox" style="display:none"></div>
+  <div id="deadwarn" class="warnbox" style="display:none;background:#fdecea;border-color:#f5c2c0;color:#8a2019"></div>
+
+  <div id="drop">
+    <div class="big">把 PDF 拖到这里，或点击选择文件</div>
+    <div class="small">支持一次拖多个文件，会排队依次翻译；整本书建议先用页码范围试译几页</div>
+    <input id="file" type="file" accept="application/pdf" multiple hidden>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="opts">
+      <div class="grp"><b>输出</b>
+        <select id="mode">
+          <option value="bilingual">中英对照</option>
+          <option value="zh">只要中文</option>
+        </select>
+      </div>
+      <div class="grp"><b>质量</b>
+        <select id="quality">
+          <option value="normal">标准（beam=4，更准）</option>
+          <option value="fast">快速（beam=1，快 2-3 倍）</option>
+        </select>
+      </div>
+      <div class="grp"><b>页码范围</b>
+        <input id="page_from" type="number" min="1" placeholder="起" style="width:64px">
+        <span style="color:var(--muted)">–</span>
+        <input id="page_to" type="number" min="1" placeholder="止" style="width:64px">
+      </div>
+      <label><input type="checkbox" id="drop_refs"> 跳过参考文献部分</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <strong style="font-size:15px">任务</strong>
+      <span class="tag" id="envinfo"></span>
+    </div>
+    <div id="jobs"><div class="empty">还没有任务</div></div>
+  </div>
+
+  <div class="sub" style="margin:0">
+    译文只在本次运行期间保留：<b>点「下载」才会存到你的电脑上</b>，
+    关掉程序后临时文件自动清空。上传的原文翻完即删。
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const drop = $('#drop'), fileInput = $('#file');
+
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('hot'); };
+drop.ondragleave = () => drop.classList.remove('hot');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('hot'); send(e.dataTransfer.files); };
+fileInput.onchange = () => { send(fileInput.files); fileInput.value = ''; };
+
+function send(files){
+  const pdfs = [...files].filter(f => f.name.toLowerCase().endsWith('.pdf'));
+  if(!pdfs.length){ alert('请选择 PDF 文件'); return; }
+  const fd = new FormData();
+  pdfs.forEach(f => fd.append('files', f));
+  fd.append('mode', $('#mode').value);
+  fd.append('quality', $('#quality').value);
+  fd.append('drop_refs', $('#drop_refs').checked ? '1' : '0');
+  fd.append('page_from', $('#page_from').value);
+  fd.append('page_to', $('#page_to').value);
+  fetch('/api/upload', {method:'POST', body:fd})
+    .then(r => r.json())
+    .then(d => { if(d.error) alert(d.error); refresh(); })
+    .catch(e => alert('上传失败：' + e));
+}
+
+const LABEL = {queued:'排队中', running:'进行中', done:'已完成', error:'出错', cancelled:'已取消'};
+
+function esc(s){ return (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+
+function render(jobs){
+  const box = $('#jobs');
+  if(!jobs.length){ box.innerHTML = '<div class="empty">还没有任务</div>'; return; }
+  box.innerHTML = jobs.map(j => {
+    const pct = Math.max(0, Math.min(100, j.percent || 0));
+    let right = '';
+    if(j.status === 'done')
+      right = `<a class="btn primary" href="/api/download/${j.id}">下载</a>
+               <a class="btn" href="/api/preview/${j.id}" target="_blank">预览</a>`;
+    else if(j.status === 'running' || j.status === 'queued')
+      right = `<button class="btn" onclick="cancel('${j.id}')">取消</button>`;
+    let extra = '';
+    if(j.status === 'done' && j.result)
+      extra = ` · 原文 ${j.result.n_pages} 页 / ${j.result.n_sentences} 句`;
+    const color = j.status === 'error' ? 'style="color:var(--err)"'
+                : j.status === 'done' ? 'style="color:var(--ok)"' : '';
+    return `<div class="job">
+      <div class="meta">
+        <div class="nm">${esc(j.name)} <span class="tag">${LABEL[j.status]||j.status}</span></div>
+        <div class="st" ${color}>${esc(j.message||'')}${extra}</div>
+        ${(j.status==='running'||j.status==='queued') ? `<div class="bar"><i style="width:${pct}%"></i></div>` : ''}
+      </div>
+      <div style="display:flex;gap:8px">${right}</div>
+    </div>`;
+  }).join('');
+}
+
+let deadCount = 0;
+function refresh(){
+  fetch('/api/jobs')
+    .then(r => r.json())
+    .then(d => {
+      deadCount = 0;
+      const w = $('#deadwarn');
+      if(w) w.style.display = 'none';
+      render(d.jobs);
+    })
+    .catch(() => {
+      deadCount++;
+      if(deadCount >= 3){
+        const w = $('#deadwarn');
+        if(w){
+          w.style.display = 'block';
+          w.innerHTML = '<b>和本地服务失去连接了。</b>那个黑色的命令行窗口很可能已经退出或崩溃——'
+            + '请回去看看它最后几行写了什么（那是真正的报错），然后重新运行「启动翻译器」。'
+            + '进度条停住不动通常就是这个原因，不是翻译变慢。';
+        }
+      }
+    });
+}
+function cancel(id){ fetch('/api/cancel/' + id, {method:'POST'}).then(refresh); }
+fetch('/api/env').then(r=>r.json()).then(d=>{
+  const info = $('#envinfo');
+  if(info) info.textContent = `解析：${d.parser} · 模型：${d.model}`;
+  if(!d.ready){
+    const w = $('#envwarn');
+    w.style.display = 'block';
+    w.innerHTML = '还没有装好翻译模型依赖（torch / transformers）。请先运行安装脚本'
+      + '（Windows：<b>install.bat</b>；macOS：<b>bash install.command</b>），装好后重启本程序。'
+      + '<br><span style="opacity:.75">' + esc(d.detail) + '</span>';
+  }
+});
+
+setInterval(refresh, 1000);
+refresh();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# 跨平台仓库的换行符约定：
+# .bat 必须是 CRLF（Windows 的 cmd 对 LF 的 bat 有时会解析出错），
+# .command / .sh 必须是 LF（macOS 的 bash 遇到 CRLF 会报 $'\r': command not found）。
+* text=auto eol=lf
+*.bat text eol=crlf
+*.command text eol=lf
+*.py text eol=lf
+*.md text eol=lf

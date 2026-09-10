@@ -1,0 +1,24 @@
+# 翻译器依赖。两个平台共用这一份。
+#
+# 几个上限不是洁癖，都是踩过的坑：
+#   torch<2.3         装过 Anaconda 的 Windows 机器上，新版 torch 自带的
+#                     libiomp5md.dll 会和 Anaconda 的撞车（WinError 1114）；
+#                     另外 PyTorch 给 Intel Mac 的官方轮子也停在 2.2.x。
+#   numpy<2           torch 2.2 是按 NumPy 1.x 编译的，装 numpy 2 会崩。
+#   transformers<4.42 更新的版本因为 CVE-2025-32434 拒绝用 torch<2.6 读 .bin 权重。
+#   huggingface_hub<0.30  和上面这代 transformers 搭配最稳。
+#
+# 老系统（如 macOS 10.14）上 pdfminer.six 可能装不上（它依赖 cryptography，
+# 而老系统没有预编译包）。装不上也能用，程序会自动退回 pypdf 后端，
+# 只是分栏和角标处理的精度会低一些。
+
+flask>=3.0
+pdfminer.six>=20221105
+pypdf>=4.0
+reportlab>=4.0
+numpy<2
+torch<2.3
+transformers>=4.36,<4.42
+huggingface_hub<0.30
+sentencepiece
+sacremoses

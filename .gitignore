@@ -1,0 +1,15 @@
+# 运行环境与模型（体积大，各自本地生成）
+.venv/
+model/
+*.pth
+*.bin
+*.safetensors
+
+# 运行产物
+cache.db
+__pycache__/
+*.py[cod]
+
+# 系统杂物
+.DS_Store
+Thumbs.db
