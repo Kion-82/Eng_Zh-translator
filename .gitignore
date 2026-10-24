@@ -8,6 +8,7 @@ model/
 # 运行产物
 cache.db
 __pycache__/
+.pytest_cache/
 *.py[cod]
 
 # 系统杂物

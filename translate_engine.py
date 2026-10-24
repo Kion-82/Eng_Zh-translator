@@ -37,21 +37,24 @@ class TranslationCache:
         self.conn.commit()
 
     @staticmethod
-    def _key(text: str, model: str) -> str:
-        return hashlib.sha1(f"{model}\x00{text}".encode("utf-8")).hexdigest()
+    def _key(text: str, model: str, beams: int) -> str:
+        # key 里带上 beam 数：「快速」(beam=1) 的结果不能被「标准」(beam=4) 复用。
+        # 模型只取文件夹名，项目目录搬家后缓存照样能用。
+        model = re.split(r"[\\/]", model.rstrip("/\\"))[-1] or model
+        return hashlib.sha1(f"{model}\x00b{beams}\x00{text}".encode("utf-8")).hexdigest()
 
-    def get(self, text: str, model: str):
+    def get(self, text: str, model: str, beams: int):
         with _CACHE_LOCK:
             row = self.conn.execute(
-                "SELECT dst FROM mt WHERE k=?", (self._key(text, model),)
+                "SELECT dst FROM mt WHERE k=?", (self._key(text, model, beams),)
             ).fetchone()
         return row[0] if row else None
 
-    def put_many(self, pairs: list[tuple[str, str]], model: str):
+    def put_many(self, pairs: list[tuple[str, str]], model: str, beams: int):
         with _CACHE_LOCK:
             self.conn.executemany(
                 "INSERT OR REPLACE INTO mt (k, src, dst) VALUES (?,?,?)",
-                [(self._key(s, model), s, d) for s, d in pairs],
+                [(self._key(s, model, beams), s, d) for s, d in pairs],
             )
             self.conn.commit()
 
@@ -106,7 +109,7 @@ class Translator:
         todo: list[int] = []
 
         for i, s in enumerate(sentences):
-            hit = self.cache.get(s, self.model_name) if self.cache else None
+            hit = self.cache.get(s, self.model_name, beams) if self.cache else None
             if hit is not None:
                 results[i] = hit
             else:
@@ -132,7 +135,7 @@ class Translator:
             for i, out in zip(idxs, outs):
                 results[i] = out
             if self.cache:
-                self.cache.put_many(list(zip(batch, outs)), self.model_name)
+                self.cache.put_many(list(zip(batch, outs)), self.model_name, beams)
             done += len(idxs)
             if progress:
                 progress(done, len(sentences))

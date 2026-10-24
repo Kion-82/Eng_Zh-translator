@@ -20,6 +20,17 @@ if [ -d .venv ] && [ ! -x .venv/bin/python3 ]; then
   echo "检测到不是本机的 .venv，挪开重建…"
   mv .venv ".venv_other_os_$(date +%s)"
 fi
+# torch 2.2 只有 Python 3.10-3.12 的安装包，更新的 Python 装依赖必然失败，先拦下来
+if [ -x .venv/bin/python3 ]; then CHK=".venv/bin/python3"; else CHK="python3"; fi
+if ! "$CHK" -c 'import sys; sys.exit(0 if (3,10) <= sys.version_info[:2] <= (3,12) else 1)'; then
+  echo "[错误] 需要 Python 3.10 到 3.12，当前是：$("$CHK" --version 2>&1)"
+  echo "依赖里的 torch 2.2 没有 Python 3.13 及以上的安装包。"
+  echo "请安装 Python 3.12（https://www.python.org/downloads/），"
+  echo "然后用 python3.12 -m venv .venv 建环境，再重新运行本脚本。"
+  echo "如果 .venv 是用不合适的版本建的，先删掉 .venv 文件夹。"
+  read -r -p "按回车键关闭…"; exit 1
+fi
+
 if [ ! -x .venv/bin/python3 ]; then
   echo "[1/3] 创建独立运行环境 .venv ..."
   python3 -m venv .venv || { echo "[错误] 创建失败"; read -r -p "回车关闭…"; exit 1; }

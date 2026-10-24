@@ -19,6 +19,20 @@ if errorlevel 1 (
   exit /b 1
 )
 
+rem torch 2.2 只有 Python 3.10-3.12 的安装包，更新的 Python 装依赖必然失败，先拦下来
+if exist ".venv\Scripts\python.exe" (set CHK=.venv\Scripts\python.exe) else (set CHK=python)
+"%CHK%" -c "import sys; sys.exit(0 if (3,10) <= sys.version_info[:2] <= (3,12) else 1)"
+if errorlevel 1 (
+  echo [错误] 需要 Python 3.10 到 3.12，当前版本：
+  "%CHK%" --version
+  echo 依赖里的 torch 2.2 没有 Python 3.13 及以上的安装包。
+  echo 请从 https://www.python.org/downloads/ 安装 Python 3.12。
+  echo 已装多个版本时，可先运行 py -3.12 -m venv .venv 再重新运行本脚本。
+  echo 如果 .venv 是用不合适的版本建的，先删掉 .venv 文件夹。
+  pause
+  exit /b 1
+)
+
 if not exist ".venv\Scripts\python.exe" (
   echo [1/3] 创建独立运行环境 .venv ...
   python -m venv .venv || goto fail

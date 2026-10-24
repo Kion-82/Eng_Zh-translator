@@ -156,6 +156,9 @@ def page_boxes(layout) -> tuple[list[dict], float, float]:
         if not lines:
             continue
         lines.sort(key=lambda l: (l["top"], l["x0"]))
+        for ln in lines:
+            # 所在文本框有几行：页眉页脚几乎总是单独成框，正文行则属于多行的框
+            ln["_nbox"] = len(lines)
         boxes.append({
             "x0": min(l["x0"] for l in lines),
             "x1": max(l["x1"] for l in lines),
